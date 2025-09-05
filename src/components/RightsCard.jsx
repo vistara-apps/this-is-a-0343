@@ -6,10 +6,18 @@ import InfoCard from './InfoCard'
 import ShareButton from './ShareButton'
 
 export default function RightsCard({ onBackToHome }) {
-  const { state, dispatch } = useApp()
+  const { state, actions } = useApp()
   const [activeTab, setActiveTab] = useState('rights')
   
-  const rightsData = {
+  // Use state-specific rights data if available, otherwise fallback to default
+  const rightsData = state.stateRights || {
+    rights: [
+      "Right to remain silent (5th Amendment)",
+      "Right to refuse consent to searches",
+      "Right to ask if you're free to leave",
+      "Right to a lawyer during questioning",
+      "Right to record in public spaces"
+    ],
     whatToSay: [
       "I am exercising my right to remain silent.",
       "I do not consent to any searches.",
@@ -23,19 +31,17 @@ export default function RightsCard({ onBackToHome }) {
       "Don't lie or provide false information",
       "Don't consent to searches",
       "Don't answer questions without a lawyer"
-    ],
-    yourRights: [
-      "Right to remain silent (5th Amendment)",
-      "Right to refuse consent to searches",
-      "Right to ask if you're free to leave",
-      "Right to a lawyer during questioning",
-      "Right to record in public spaces"
     ]
   }
   
   const handleLanguageToggle = () => {
     const newLang = state.user.preferredLanguage === 'english' ? 'spanish' : 'english'
-    dispatch({ type: 'SET_LANGUAGE', payload: newLang })
+    actions.setLanguage(newLang)
+    
+    // Reload state rights in new language if state is selected
+    if (state.user.state) {
+      actions.selectState(state.user.state)
+    }
   }
   
   return (
@@ -80,18 +86,23 @@ export default function RightsCard({ onBackToHome }) {
           variant="record"
           icon={Video}
           label={state.user.preferredLanguage === 'spanish' ? 'Grabar Interacción' : 'Record Interaction'}
-          onClick={() => {
+          onClick={async () => {
             if (state.user.subscriptionStatus === 'free') {
-              dispatch({
-                type: 'SHOW_MODAL',
-                payload: {
-                  type: 'upgrade',
-                  title: 'Upgrade to Pro',
-                  content: 'Recording features require a Pro subscription. Upgrade for $4.99/month.'
-                }
+              actions.showModal({
+                type: 'upgrade',
+                title: 'Upgrade to Pro',
+                content: 'Recording features require a Pro subscription. Upgrade for $4.99/month.',
+                onConfirm: actions.upgradeSubscription
               })
             } else {
-              dispatch({ type: 'START_RECORDING' })
+              const result = await actions.startRecording('video')
+              if (!result.success) {
+                actions.showModal({
+                  type: 'error',
+                  title: 'Recording Failed',
+                  content: result.error || 'Unable to start recording. Please check your permissions.'
+                })
+              }
             }
           }}
         />
@@ -100,16 +111,7 @@ export default function RightsCard({ onBackToHome }) {
           variant="alert"
           icon={Phone}
           label={state.user.preferredLanguage === 'spanish' ? 'Alertar Contactos' : 'Alert Contacts'}
-          onClick={() => {
-            dispatch({
-              type: 'SHOW_MODAL',
-              payload: {
-                type: 'alert',
-                title: 'Emergency Alert Sent',
-                content: 'Your trusted contacts have been notified of your current location and situation.'
-              }
-            })
-          }}
+          onClick={actions.sendEmergencyAlert}
         />
       </div>
       
@@ -122,7 +124,7 @@ export default function RightsCard({ onBackToHome }) {
               <span className="font-medium text-red-800">Recording in progress...</span>
             </div>
             <button
-              onClick={() => dispatch({ type: 'STOP_RECORDING' })}
+              onClick={actions.stopRecording}
               className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium"
             >
               Stop
@@ -154,7 +156,7 @@ export default function RightsCard({ onBackToHome }) {
       {activeTab === 'rights' && (
         <InfoCard
           title={state.user.preferredLanguage === 'spanish' ? 'Sus Derechos Constitucionales' : 'Your Constitutional Rights'}
-          items={rightsData.yourRights}
+          items={rightsData.rights}
           icon={Shield}
           variant="default"
         />
@@ -192,7 +194,7 @@ export default function RightsCard({ onBackToHome }) {
               </p>
             </div>
             <button
-              onClick={() => dispatch({ type: 'UPGRADE_SUBSCRIPTION' })}
+              onClick={actions.upgradeSubscription}
               className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium"
             >
               $4.99/mo

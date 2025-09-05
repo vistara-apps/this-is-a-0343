@@ -14,7 +14,7 @@ const US_STATES = [
 ]
 
 export default function StateSelector({ onStateSelected }) {
-  const { state, dispatch } = useApp()
+  const { state, actions } = useApp()
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   
@@ -22,8 +22,8 @@ export default function StateSelector({ onStateSelected }) {
     stateName.toLowerCase().includes(searchTerm.toLowerCase())
   )
   
-  const handleStateSelect = (selectedState) => {
-    dispatch({ type: 'SET_STATE', payload: selectedState })
+  const handleStateSelect = async (selectedState) => {
+    await actions.selectState(selectedState)
     setIsOpen(false)
     onStateSelected()
   }
